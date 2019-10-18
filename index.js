@@ -2,50 +2,115 @@
 
 const express = require('express');
 const app = express();
+const fs = require('fs');
 
-const rp = require('request-promise');
+const request = require('request');
 const otcsv = require('objects-to-csv');
 const cheerio = require('cheerio');
+const nodemailer = require('nodemailer');
 
-const baseURL = 'https://www.njuskalo.hr';
-const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
-const pageParam = '&page='
+const baseURL = 'https://seneca.neocities.org';
+// const baseURL = 'https://www.njuskalo.hr';
 
-const getAds = async () => {
+const searchURL = '/njuskalo.html';
+// const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
+const pageParam = '&page=';
 
-  const page1 = await rp(baseURL + searchURL);
-  // const page2 = await rp(baseURL + searchURL + pageParam + 2);
-  // const page3 = await rp(baseURL + searchURL + pageParam + 3);
+const screenshot = require("node-server-screenshot");
 
-  console.log(page1);
-  console.log('++++++++++++++++++++++++++++++++++++++++++++++++++');
+const getAds = () => {
 
-  let links = [];
+  return new Promise(resolve => {
+    request(baseURL + searchURL, function(err, res, body) {
+        if (err) {
+            console.log(err);
+        } else {
 
-  const businessMap = cheerio('div.EntityList.EntityList--Standard ul.EntityList-items li', page1).map(async (i, e) => {
+            const arr = [];
 
-    links.push(e.attribs['data-href']);
-    // const innerHtml = await rp(link);
-    // const emailAddress = cheerio('a.email-business', innerHtml).prop('href');
-    // const name = e.children[0].data;
-    // const phone = cheerio('p.phone', innerHtml).text();
+            let $ = cheerio.load(body);
+            $('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function(index) {
 
-  //   return {
-  //     emailAddress,
-  //     link,
-  //     name,
-  //     phone,
-  //   }
-  // }).get();
-  // return Promise.all(businessMap);
-});
+                const href = $(this).attr('data-href');
+                const options = $(this).attr('data-options');
+
+                const title = $(this).find('.entity-title').text();
+                let price = $(this).find('.entity-prices .price.price--eur').text();
+                price = price.replace(/\D/gm,"") + '€';
+                
+                if (options) {
+                  const id = JSON.parse(options).id;
+
+                  arr.push({
+                    id, href, title, price
+                  });
+
+                  screenshot.fromHTML($(this), "test.png", function(){
+                      //an image of the HTML has been saved at ./test.png
+                  });
+
+                }
+            });
+
+            console.log(arr.length);
+            resolve(arr);
+        }
+    });
+  });
+
+
+
 }
 
-app.get('/', async (req, res) => {
-	let links = await getAds();
-    res.send(links)
-})
+const sendEmail = async (data) => {
+    let testAccount = await nodemailer.createTestAccount();
+
+    // create reusable transporter object using the default SMTP transport
+    let transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+            user: testAccount.user, // generated ethereal user
+            pass: testAccount.pass // generated ethereal password
+        }
+    });
+
+    let message = '';
+    data.forEach((ad) => {
+      message += ad.title + ' - ' + ad.id + +'\n';
+    });
+
+    let info = await transporter.sendMail({
+        from: '"Fred Foo" <foo@example.com>', // sender address
+        to: 'roslyn.kuhlman@ethereal.email', // list of receivers
+        subject: 'Hello ✔', // Subject line
+        text: message, // plain text body
+        html: '<b>Hello world?</b>' // html body
+    });
+
+    console.log('Message sent: %s', info.messageId);
+}
+
+setInterval(async () => {
+  getAds().then(response => {
+    sendEmail(response);
+  }, error => {
+  
+  });
+}, 60000);
+
+
+app.get( '/', async function( req, res ) {
+  // await getAds();
+  // getAds().then(async response => {
+  //   await sendEmail(response);
+    res.send("Test server");
+  // }, error => {
+  
+  // });
+});
 
 app.listen(3000, () => {
-    console.log('Server is up on 3000')
+    console.log('Server is up on 3000');
 })
