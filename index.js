@@ -37,7 +37,7 @@ const getAds = () => {
                 const title = $(this).find('.entity-title').text();
                 let price = $(this).find('.entity-prices .price.price--eur').text();
                 price = price.replace(/\D/gm,"") + '€';
-                
+
                 if (options) {
                   const id = JSON.parse(options).id;
 
@@ -82,9 +82,9 @@ const sendEmail = async (data) => {
     });
 
     let info = await transporter.sendMail({
-        from: '"Fred Foo" <foo@example.com>', // sender address
-        to: 'roslyn.kuhlman@ethereal.email', // list of receivers
-        subject: 'Hello ✔', // Subject line
+        from: '"Fred Foo"', // sender address
+        to: 'lemuel99@ethereal.email', // list of receivers
+        subject: 'Hello', // Subject line
         text: message, // plain text body
         html: '<b>Hello world?</b>' // html body
     });
@@ -96,9 +96,9 @@ setInterval(async () => {
   getAds().then(response => {
     sendEmail(response);
   }, error => {
-  
+
   });
-}, 60000);
+}, 20000);
 
 
 app.get( '/', async function( req, res ) {
@@ -107,7 +107,7 @@ app.get( '/', async function( req, res ) {
   //   await sendEmail(response);
     res.send("Test server");
   // }, error => {
-  
+
   // });
 });
 
