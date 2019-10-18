@@ -2,4 +2,4 @@
  Lets try again
 
 
- pm2 restart app
+ pm2 start index.js --logs
