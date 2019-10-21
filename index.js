@@ -120,7 +120,9 @@ function generateMessageFromAds(ads) {
 }
 
 (async () => {
+  console.log("Storage len:", AD_STORAGE.length);
   AD_STORAGE = await getAds();
+  console.log("Recieved " + AD_STORAGE.length + " ads.");
 })();
 
 // AD_STORAGE = await getAds();
@@ -133,7 +135,9 @@ setInterval(async () => {
     let old_ids = new Set(AD_STORAGE.map(ad => ad.id));
 
     let diff = new_ads.filter(ad => old_ids.has(ad.id));
-
+    
+    console.log("Fresh ads:", diff.length);
+    
     if (diff.length) {
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
         AD_STORAGE = new_ads;
