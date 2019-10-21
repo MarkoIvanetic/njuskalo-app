@@ -8,6 +8,7 @@ node_modules/
 dist/
 STARI WEB/
 images/psd/
+.env
 
 # Recycle Bin used on file shares
 $RECYCLE.BIN/

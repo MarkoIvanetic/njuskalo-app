@@ -31,13 +31,18 @@ const getAds = () => {
 
                 const arr = [];
 
-                if (body.contains(' You reached this page when trying to access')) {
+                if (body.includes(' You reached this page when trying to access')) {
                   SPOTTED = true;
                   home_resp = body;
                   console.log("********* SPOTTED ***************");
                 }
 
                 let $ = cheerio.load(body);
+
+                if (!$('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').length) {
+                  home_resp = body;
+                }
+
                 $('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function(index) {
 
                     const href = $(this).attr('data-href');
