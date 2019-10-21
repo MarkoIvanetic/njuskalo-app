@@ -28,9 +28,7 @@ const getAds = () => {
 
                 const arr = [];
 
-                if (body.toString().contains('dark')) {
-                  console.log("***************** spotted!");
-                }
+                console.log(typeof body);
 
                 let $ = cheerio.load(body);
                 $('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function(index) {
