@@ -2,21 +2,14 @@
 
 const express = require('express');
 const app = express();
-const fs = require('fs');
 
 const request = require('request');
-const otcsv = require('objects-to-csv');
 const cheerio = require('cheerio');
-const nodemailer = require('nodemailer');
 
 // const baseURL = 'https://seneca.neocities.org';
 const baseURL = 'https://www.njuskalo.hr';
-
-// const searchURL = '/njuskalo.html';
 const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
 const pageParam = '&page=';
-
-const screenshot = require("node-server-screenshot");
 
 const WEBHOOK = 'https://hooks.slack.com/services/';
 
@@ -52,15 +45,10 @@ const getAds = () => {
                                 price
                             });
 
-                            // screenshot.fromHTML($(this), id + ".png", function() {
-                            //     //an image of the HTML has been saved at ./test.png
-                            // });
-
                         }
                     }
                 });
 
-                // console.log(arr.length);
                 resolve(arr);
             }
         });
