@@ -19,12 +19,19 @@ let SPOTTED = false;
 
 let home_resp = 'Running!';
 
+const REQ_OPTIONS = {
+    'url': baseURL + searchURL,
+    'headers': {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36'
+    }
+}
+
 console.log("WEBHOOK:", WEBHOOK);
 
 const getAds = () => {
 
     return new Promise(resolve => {
-        request(baseURL + searchURL, function(err, res, body) {
+        request(REQ_OPTIONS, function(err, res, body) {
             if (err) {
                 console.log(err);
             } else {
