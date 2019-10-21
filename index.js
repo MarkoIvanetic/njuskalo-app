@@ -16,6 +16,7 @@ const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
 
 let AD_STORAGE = [];
 let SPOTTED = false;
+const TIMEOUT = 3600000 / 2;
 
 let home_resp = 'Running!';
 
@@ -56,6 +57,7 @@ const getAds = () => {
                     const options = $(this).attr('data-options');
 
                     const title = $(this).find('.entity-title').text();
+                    const img = $(this).find('.entity-thumbnail').find('img').data('src');
                     let price = $(this).find('.entity-prices .price.price--eur').text();
                     price = price.replace(/\D/gm, "") + '€';
 
@@ -65,6 +67,7 @@ const getAds = () => {
                             arr.push({
                                 id,
                                 href,
+                                img,
                                 title,
                                 price
                             });
@@ -142,6 +145,10 @@ function generateMessageFromAds(ads) {
         return message;
 }
 
+
+// INIT
+let start_time = new Date();
+
 (async () => {
   console.log("Storage len:", AD_STORAGE.length);
   AD_STORAGE = await getAds();
@@ -157,7 +164,7 @@ setInterval(async () => {
 
     let old_ids = new Set(AD_STORAGE.map(ad => ad.id));
 
-    let diff = new_ads.filter(ad => old_ids.has(ad.id));
+    let diff = new_ads.filter(ad => !old_ids.has(ad.id));
 
     console.log("Fresh ads:", diff.length);
 
@@ -166,20 +173,25 @@ setInterval(async () => {
         AD_STORAGE = new_ads;
     }
 
-}, 3600000);
+    start_time = new Date();
+
+}, TIMEOUT);
 
 
 app.get('/', async function(req, res) {
-    // let ads = await getAds();
+   res.set('Content-Type', 'text/html');
+   let endTime = new Date(); 
 
-  // AD_STORAGE = await getAds();
-  // let res = await sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE));
+   let _html = '<h3>' + home_resp + '</h3>';
+   _html += '<p>' + (((TIMEOUT - (endTime - start_time)) / 1000) / 60).toFixed(0) + ' minutes till update</p>';
+   _html += '<hr/>';
+   _html += '<h4>Current ads:</h4>';
 
-      // let message_res = await sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE.slice(0, 5)));
+   AD_STORAGE.forEach(ad => {
+    _html += '<br/><p>' + (ad.title || 'N/A') + '<img src="' + ad.img + '"/></p>';
+   });
 
-      // console.log(message_res);
-
-    res.send(home_resp);
+    res.send(_html);
 });
 
 app.listen(3000, () => {
