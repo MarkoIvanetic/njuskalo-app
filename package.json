@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.3",
-    "dotnet": "^1.1.4",
+    "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "node-server-screenshot": "^0.2.2",
     "request": "^2.88.0"
