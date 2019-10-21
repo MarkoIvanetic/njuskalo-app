@@ -12,7 +12,7 @@
     "cheerio": "^1.0.0-rc.3",
     "express": "^4.17.1",
     "node-server-screenshot": "^0.2.2",
-    "request": "^2.88.0",
+    "request": "^2.88.0"
   },
   "devDependencies": {
     "nodemon": "^1.19.4"

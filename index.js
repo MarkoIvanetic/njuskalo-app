@@ -1,4 +1,5 @@
 // index.js
+require('dotenv').config();
 
 const express = require('express');
 const app = express();
@@ -11,7 +12,7 @@ const baseURL = 'https://www.njuskalo.hr';
 const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
 const pageParam = '&page=';
 
-const WEBHOOK = 'https://hooks.slack.com/services/';
+const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
 
 let AD_STORAGE = [];
 
