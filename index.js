@@ -9,11 +9,11 @@ const otcsv = require('objects-to-csv');
 const cheerio = require('cheerio');
 const nodemailer = require('nodemailer');
 
-const baseURL = 'https://seneca.neocities.org';
-// const baseURL = 'https://www.njuskalo.hr';
+// const baseURL = 'https://seneca.neocities.org';
+const baseURL = 'https://www.njuskalo.hr';
 
-const searchURL = '/njuskalo.html';
-// const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
+// const searchURL = '/njuskalo.html';
+const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
 const pageParam = '&page=';
 
 const screenshot = require("node-server-screenshot");
@@ -60,7 +60,7 @@ const getAds = () => {
                     }
                 });
 
-                console.log(arr.length);
+                // console.log(arr.length);
                 resolve(arr);
             }
         });
@@ -93,35 +93,36 @@ const sendEmail = async (data) => {
 }
 
 const sendSlackMessage = async (webhook = WEBHOOK, message) => {
-    const res = await request({
+    return request({
         url: webhook,
         method: 'POST',
         body: message,
         json: true
     });
 
-    return res;
-
 }
 
 
 function generateMessageFromAds(ads) {
-        let message = [];
+        let message = {
+            blocks: []
+        };
 
-        message.push({
+        message.blocks.push({
             "type": "section",
             "text": {
-                "type": "mrkdwn"
+                "type": "mrkdwn",
+                "text": "We found *205 Hotels* in New Orleans, LA from *12/14 to 12/17*"
             }
         });
 
-        message.push({
+        message.blocks.push({
             "type": "divider"
         });
 
         ads.forEach(ad => {
-          message.push(convertAdToMessage(ad));
-          message.push({
+          message.blocks.push(convertAdToMessage(ad));
+          message.blocks.push({
               "type": "divider"
           });
         });
@@ -131,15 +132,12 @@ function generateMessageFromAds(ads) {
 
 (async () => {
   AD_STORAGE = await getAds();
-  let res = await sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE));
-  console.log(res);
 })();
 
 // AD_STORAGE = await getAds();
 
 setInterval(async () => {
     let new_ads = await getAds();
-    new_ads[0].id = 'changed';
     
     console.log("UPDATE!");
 
@@ -152,20 +150,20 @@ setInterval(async () => {
         AD_STORAGE = new_ads;
     }
 
-
-}, 10000);
-// }, 3600000);
+}, 3600000);
 
 
 app.get('/', async function(req, res) {
-    let ads = await getAds();
+    // let ads = await getAds();
 
-    // getAds().then(async response => {
-    //   await sendEmail(response);
-    res.send(JSON.stringify(ads));
-    // }, error => {
+  // AD_STORAGE = await getAds();
+  // let res = await sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE));
 
-    // });
+      // let message_res = await sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE.slice(0, 5)));
+
+      // console.log(message_res);
+
+    // res.send(JSON.stringify(generateMessageFromAds(AD_STORAGE.slice(0, 5))));
 });
 
 app.listen(3000, () => {
@@ -174,17 +172,20 @@ app.listen(3000, () => {
 
 
 function convertAdToMessage(ad) {
+    // let text = "*<" + baseURL + ad.link + "|" + ad.title + ">*\n★★★★★\n" + ad.price + "\nRated: 9.4 - Excellent";
+    let text = `*<${baseURL + ad.href}|${ad.title}>*${ad.price.toString()}`;
+    // let text = `"*Average Rating*\n1.0"`;
     return {
         "type": "section",
         "text": {
             "type": "mrkdwn",
             // "text": "*<fakeLink.toHotelPage.com|Windsor Court Hotel>*\n★★★★★\n$340 per night\nRated: 9.4 - Excellent"
-            "text": "*<" + baseURL + ad.link + "|" + ad.title + ">*\n★★★★★\n" + ad.price + "\nRated: 9.4 - Excellent"
-        },
-        "accessory": {
-            "type": "image",
-            "image_url": "./" + ad.id,
-            "alt_text": ad.title
+            "text": text
         }
+        // "accessory": {
+            // "type": "image",
+            // "image_url": "./" + ad.id,
+            // "alt_text": ad.title
+        // }
     }
 }
