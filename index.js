@@ -15,6 +15,9 @@ const pageParam = '&page=';
 const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
 
 let AD_STORAGE = [];
+let SPOTTED = false;
+
+let home_resp = 'Running!';
 
 console.log("WEBHOOK:", WEBHOOK);
 
@@ -28,7 +31,11 @@ const getAds = () => {
 
                 const arr = [];
 
-                console.log(typeof body);
+                if (body.contains(' You reached this page when trying to access')) {
+                  SPOTTED = true;
+                  home_resp = body;
+                  console.log("********* SPOTTED ***************");
+                }
 
                 let $ = cheerio.load(body);
                 $('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function(index) {
@@ -160,7 +167,7 @@ app.get('/', async function(req, res) {
 
       // console.log(message_res);
 
-    // res.send(JSON.stringify(generateMessageFromAds(AD_STORAGE.slice(0, 5))));
+    res.send(home_resp);
 });
 
 app.listen(3000, () => {
