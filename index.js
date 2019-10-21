@@ -7,6 +7,8 @@ const app = express();
 const request = require('request');
 const cheerio = require('cheerio');
 
+var fs = require("fs");
+
 // const baseURL = 'https://seneca.neocities.org';
 const baseURL = 'https://www.njuskalo.hr';
 const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
@@ -27,7 +29,7 @@ const REQ_OPTIONS = {
     }
 }
 
-console.log("WEBHOOK:", WEBHOOK);
+console.log("WEBHOOK:", process.env.WEBHOOK);
 
 const getAds = () => {
 
@@ -117,6 +119,26 @@ const sendSlackMessage = async (webhook = WEBHOOK, message) => {
 
 }
 
+const setStorage = async new_ads => {
+
+    if (process.env.ENV === 'development') {
+        Promise.resolve("Success");
+    }
+
+    return new Promise(resolve => {
+        fs.writeFile( "storage.json", JSON.stringify(new_ads), "utf8", () => {
+            resolve('Success');
+        });
+    });
+}
+
+const getStorage = () => {
+    if (process.env.ENV === 'development') {
+        return AD_STORAGE;
+    }
+    return require("./storage.json");
+}
+
 
 function generateMessageFromAds(ads) {
         let message = {
@@ -150,8 +172,12 @@ function generateMessageFromAds(ads) {
 let start_time = new Date();
 
 (async () => {
-  console.log("Storage len:", AD_STORAGE.length);
-  AD_STORAGE = await getAds();
+    console.log("ENVIROMENT:", process.env.ENV);
+  // Get adds
+  let _ads = AD_STORAGE = await getAds();
+  setStorage(_ads);
+  // Send test notification
+  sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE.slice(0, 2)));
   console.log("Recieved " + AD_STORAGE.length + " ads.");
 })();
 
@@ -169,6 +195,7 @@ setInterval(async () => {
     console.log("Fresh ads:", diff.length);
 
     if (diff.length) {
+        console.log("Sending slack message");
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
         AD_STORAGE = new_ads;
     }
@@ -188,7 +215,10 @@ app.get('/', async function(req, res) {
    _html += '<h4>Current ads:</h4>';
 
    AD_STORAGE.forEach(ad => {
-    _html += '<br/><p>' + (ad.title || 'N/A') + '<img src="' + ad.img + '"/></p>';
+    _html += '<p><a href="' + (baseURL + ad.href) + '">' + (ad.title || 'N/A') + '</a></p>';
+    _html += '<p><span style="color:red">(' + ad.price + ')</span></p>';
+    _html += '<p><img src="' + ad.img + '"/></p>';
+    _html += '<hr/>';
    });
 
     res.send(_html);
