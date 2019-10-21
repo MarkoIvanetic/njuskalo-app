@@ -16,6 +16,8 @@ const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
 
 let AD_STORAGE = [];
 
+console.log("WEBHOOK:", WEBHOOK);
+
 const getAds = () => {
 
     return new Promise(resolve => {
@@ -25,6 +27,10 @@ const getAds = () => {
             } else {
 
                 const arr = [];
+
+                if (body.toString().contains('dark')) {
+                  console.log("***************** spotted!");
+                }
 
                 let $ = cheerio.load(body);
                 $('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function(index) {
@@ -135,9 +141,9 @@ setInterval(async () => {
     let old_ids = new Set(AD_STORAGE.map(ad => ad.id));
 
     let diff = new_ads.filter(ad => old_ids.has(ad.id));
-    
+
     console.log("Fresh ads:", diff.length);
-    
+
     if (diff.length) {
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
         AD_STORAGE = new_ads;
