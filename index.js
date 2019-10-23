@@ -9,13 +9,17 @@ const cheerio = require('cheerio');
 
 var fs = require("fs");
 
-// const baseURL = 'https://seneca.neocities.org';
 const baseURL = 'https://www.njuskalo.hr';
+// const baseURL = 'https://seneca.neocities.org';
 const searchURL = process.env.QUERY;
+// const searchURL = '/njuskalo.html';
+
+const page2 = '&page=2';
 
 const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
 
 let AD_STORAGE = [];
+
 let SPOTTED = false;
 const TIMEOUT = 3600000 / 2;
 
@@ -28,12 +32,19 @@ const REQ_OPTIONS = {
     }
 }
 
+const REQ_OPTIONS_PG_2 = {
+    'url': baseURL + searchURL + page2,
+    'headers': {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36'
+    }
+}
+
 console.log("WEBHOOK:", process.env.WEBHOOK);
 
-const getAds = () => {
+const getAds = (options) => {
 
     return new Promise(resolve => {
-        request(REQ_OPTIONS, function(err, res, body) {
+        request(options, function(err, res, body) {
             if (err) {
                 console.log(err);
             } else {
@@ -94,11 +105,6 @@ const sendSlackMessage = async (webhook = WEBHOOK, message) => {
 }
 
 const setStorage = async new_ads => {
-
-    if (process.env.ENV === 'development') {
-        Promise.resolve("Success");
-    }
-
     return new Promise(resolve => {
         fs.writeFile( "storage.json", JSON.stringify(new_ads), "utf8", () => {
             resolve('Success');
@@ -107,9 +113,6 @@ const setStorage = async new_ads => {
 }
 
 const getStorage = () => {
-    if (process.env.ENV === 'development') {
-        return AD_STORAGE;
-    }
     return require("./storage.json");
 }
 
@@ -147,22 +150,32 @@ let start_time = new Date();
 
 (async () => {
     console.log("ENVIROMENT:", process.env.ENV);
-  // Get adds
-  let _ads = AD_STORAGE = await getAds();
-  setStorage(_ads);
+
+    let storage = null;
+    AD_STORAGE = await getAds(REQ_OPTIONS);
+
+    if (!fs.existsSync('./storage.json')) {
+        console.log("Storage not found");
+        setTimeout(async () => {
+            let AD_STORAGE_2 = await getAds(REQ_OPTIONS_PG_2);
+            setStorage([...AD_STORAGE, AD_STORAGE_2].map(ad => ad.id));
+        }, 500);
+    }
+
   // Send test notification
-  sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE.slice(0, 2)));
+  sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE.slice(0, 1)));
   console.log("Recieved " + AD_STORAGE.length + " ads.");
 })();
 
 setInterval(async () => {
-    let new_ads = await getAds();
+    let new_ads = await getAds(REQ_OPTIONS);
+
+    let storage = await getStorage();
+    let storage_set = new Set(JSON.parse(storage));
 
     console.log("UPDATE!");
 
-    let old_ids = new Set(AD_STORAGE.map(ad => ad.id));
-
-    let diff = new_ads.filter(ad => !old_ids.has(ad.id));
+    let diff = new_ads.filter(ad => !storage_set.has(ad.id));
 
     console.log("Fresh ads:", diff.length);
 
@@ -170,8 +183,9 @@ setInterval(async () => {
         console.log("Sending slack message");
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
 
-        let merged_ads = new_ads.reduce((acc, iter) => { return {...acc, [iter.id]: iter}}, {});
-        AD_STORAGE = merged_ads.values();
+        setStorage(new Set([...storage, ...diff.map(ad => ad.id)]));
+
+        AD_STORAGE = new_ads.reduce((acc, iter) => { return {...acc, [iter.id]: iter}}, {}).values();
     }
 
     start_time = new Date();
