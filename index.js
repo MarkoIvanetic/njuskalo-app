@@ -35,6 +35,10 @@ const getHeaderForPage = (page) => {
     }
 }
 
+const removeDuplicates = arr => Array.from(new Set(arr));
+
+const removeDuplicatesFromCollection = arr => Object.values(arr.reduce((acc, iter) => { return {...acc, [iter.id]: iter}}, {}));
+
 const getAds = (options) => {
     return new Promise(resolve => {
         request(options, function(err, res, body) {
@@ -110,8 +114,7 @@ const getStorage = () => {
                 throw new Error(err);
                 resolve();
             }
-            console.log(data);
-            resolve(data);
+            resolve(JSON.parse(data));
         });
     });
 }
@@ -153,21 +156,19 @@ let start_time = new Date();
 
     let storage = null;
 
-    AD_STORAGE = await getAds(getHeaderForPage());
+    page_1 = await getAds(getHeaderForPage());
     await wait(1000);
     let page_2 = await getAds(getHeaderForPage(2));
 
-    AD_STORAGE = [...AD_STORAGE, ...page_2];
+    AD_STORAGE = removeDuplicatesFromCollection([...page_1, ...page_2]);
 
     if (!fs.existsSync('./storage.json')) {
-        console.log("Storage not found");
+        console.log("Storage not found; setting storage...");
         setStorage(AD_STORAGE.map(ad => ad.id));
     }
     // Send test notification
     sendSlackMessage(WEBHOOK, {"text":"Process has been restarted!",});
     console.log("Recieved " + AD_STORAGE.length + " ads.");
-    console.log(typeof storage);
-
 })();
 
 setInterval(async () => {
@@ -175,31 +176,31 @@ setInterval(async () => {
     await wait(1000);
     let new_ads_2 = await getAds(getHeaderForPage(2));
 
-    new_ads = [...new_ads, ...new_ads_2];
+    new_ads = removeDuplicatesFromCollection([...new_ads, ...new_ads_2]);
 
     let storage = await getStorage();
-    let storage_set = new Set(storage);
 
     console.log("UPDATE!");
 
     // Filter only new one
+    let storage_set = new Set(storage);
     let diff = new_ads.filter(ad => !storage_set.has(ad.id));
 
     console.log("Fresh ads:", diff.length);
 
     if (diff.length) {
-        console.log("Sending slack message");
+        console.log("Sending slack message!");
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
 
-        console.log(new Set([...storage_set, ...diff.map(ad => ad.id)]));
+        let new_ids = diff.map(ad => ad.id);
 
-        let new_storage = new Set([...storage_set, ...diff.map(ad => ad.id)]);
+        let new_storage = [...storage, ...new_ids];
 
-        console.log("New storage:", new_storage);
+        console.log("Old storage:" + storage.length + " | New storage:" + new_storage.length);
 
         setStorage(new_storage);
 
-        AD_STORAGE = [...AD_STORAGE, ...diff];
+        AD_STORAGE = removeDuplicatesFromCollection([...AD_STORAGE, ...diff]);
     }
 
     start_time = new Date();
