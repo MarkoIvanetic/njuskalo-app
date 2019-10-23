@@ -11,8 +11,7 @@ var fs = require("fs");
 
 // const baseURL = 'https://seneca.neocities.org';
 const baseURL = 'https://www.njuskalo.hr';
-const searchURL = '/iznajmljivanje-stanova?locationIds=1263%2C1254%2C1255%2C1253%2C1250%2C1248&price%5Bmax%5D=560&livingArea%5Bmin%5D=40&livingArea%5Bmax%5D=60&adsWithImages=1&buildingFloorPosition%5Bmin%5D=high-ground#form_browse_detailed_search-filter-block';
-const pageParam = '&page=';
+const searchURL = process.env.QUERY;
 
 const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
 
@@ -84,31 +83,6 @@ const getAds = () => {
     });
 }
 
-const sendEmail = async (data) => {
-    // create reusable transporter object using the default SMTP transport
-    let transporter = nodemailer.createTransport({
-        host: 'gmail',
-        // port: 587,
-        // secure: false,
-        auth: {
-            user: 'xxx@gmail.com', // generated ethereal user
-            pass: 'xxxxxx' // generated ethereal password
-        }
-    });
-
-    // send mail with defined transport object
-    let info = await transporter.sendMail({
-        from: '"Fred Foo 👻" <foo@example.com>', // sender address
-        to: 'lemuel99@ethereal.email', // list of receivers
-        subject: 'Hello ✔', // Subject line
-        text: data.reduce((a, b) => a += b + '\n', ''), // plain text body
-        html: '<b>Hello world?</b>' // html body
-    });
-
-    console.log('Message sent: %s', info.messageId);
-    // console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
-}
-
 const sendSlackMessage = async (webhook = WEBHOOK, message) => {
     return request({
         url: webhook,
@@ -140,7 +114,7 @@ const getStorage = () => {
 }
 
 
-function generateMessageFromAds(ads) {
+function generateMessageFromAds(ads = []) {
         let message = {
             blocks: []
         };
@@ -149,7 +123,7 @@ function generateMessageFromAds(ads) {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "We found *205 Hotels* in New Orleans, LA from *12/14 to 12/17*"
+                "text": "Found " + ads.length + " new results!"
             }
         });
 
@@ -181,11 +155,9 @@ let start_time = new Date();
   console.log("Recieved " + AD_STORAGE.length + " ads.");
 })();
 
-// AD_STORAGE = await getAds();
-
 setInterval(async () => {
     let new_ads = await getAds();
-    
+
     console.log("UPDATE!");
 
     let old_ids = new Set(AD_STORAGE.map(ad => ad.id));
@@ -197,7 +169,9 @@ setInterval(async () => {
     if (diff.length) {
         console.log("Sending slack message");
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
-        AD_STORAGE = new_ads;
+
+        let merged_ads = new_ads.reduce((acc, iter) => { return {...acc, [iter.id]: iter}}, {});
+        AD_STORAGE = merged_ads.values();
     }
 
     start_time = new Date();
@@ -207,7 +181,7 @@ setInterval(async () => {
 
 app.get('/', async function(req, res) {
    res.set('Content-Type', 'text/html');
-   let endTime = new Date(); 
+   let endTime = new Date();
 
    let _html = '<h3>' + home_resp + '</h3>';
    _html += '<p>' + (((TIMEOUT - (endTime - start_time)) / 1000) / 60).toFixed(0) + ' minutes till update</p>';
@@ -230,20 +204,12 @@ app.listen(3000, () => {
 
 
 function convertAdToMessage(ad) {
-    // let text = "*<" + baseURL + ad.link + "|" + ad.title + ">*\n★★★★★\n" + ad.price + "\nRated: 9.4 - Excellent";
     let text = `*<${baseURL + ad.href}|${ad.title}>*${ad.price.toString()}`;
-    // let text = `"*Average Rating*\n1.0"`;
     return {
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            // "text": "*<fakeLink.toHotelPage.com|Windsor Court Hotel>*\n★★★★★\n$340 per night\nRated: 9.4 - Excellent"
             "text": text
         }
-        // "accessory": {
-            // "type": "image",
-            // "image_url": "./" + ad.id,
-            // "alt_text": ad.title
-        // }
     }
 }
