@@ -169,7 +169,7 @@ setInterval(async () => {
 
     let storage = await getStorage();
     console.log(typeof storage);
-    let storage_set = new Set(JSON.parse(storage));
+    let storage_set = new Set(storage);
 
     console.log("UPDATE!");
 
