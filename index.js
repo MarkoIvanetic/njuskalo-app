@@ -8,7 +8,7 @@ const cheerio = require('cheerio');
 var fs = require("fs");
 
 const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
-const TIMEOUT = 3600000 / 2;
+const TIMEOUT = 36000 / 6;
 
 let home_resp = 'Running!';
 
@@ -104,7 +104,16 @@ const setStorage = new_ads => {
 }
 
 const getStorage = () => {
-    return require("./storage.json");
+    return new Promise(resolve => {
+       fs.readFile('./storage.json', 'utf8', (err, data) => {
+            if (err) {
+                throw new Error(err);
+                resolve();
+            }
+            console.log(data);
+            resolve(data);
+        });
+    });
 }
 
 
@@ -182,6 +191,8 @@ setInterval(async () => {
         console.log("Sending slack message");
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
 
+        console.log(new Set([...storage_set, ...diff.map(ad => ad.id)]));
+
         let new_storage = new Set([...storage_set, ...diff.map(ad => ad.id)]);
 
         console.log("New storage:", new_storage);
@@ -201,7 +212,7 @@ app.get('/', async function(req, res) {
     let endTime = new Date();
 
     let _html = '<h3>' + home_resp + '</h3>';
-    _html += '<p>' + (((TIMEOUT - (endTime - start_time)) / 1000) / 60).toFixed(0) + ' minutes till update</p>';
+    _html += '<p>' + (((TIMEOUT - (endTime - start_time)) / 1000) / 60).toFixed(1) + ' minutes till update</p>';
     _html += '<hr/>';
     _html += '<h4>Current ads:</h4>';
 
