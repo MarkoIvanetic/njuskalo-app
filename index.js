@@ -3,46 +3,39 @@ require('dotenv').config();
 
 const express = require('express');
 const app = express();
-
 const request = require('request');
 const cheerio = require('cheerio');
-
 var fs = require("fs");
 
-const baseURL = 'https://www.njuskalo.hr';
-// const baseURL = 'https://seneca.neocities.org';
-const searchURL = process.env.QUERY;
-// const searchURL = '/njuskalo.html';
-
-const page2 = '&page=2';
-
 const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK;
-
-let AD_STORAGE = [];
-
-let SPOTTED = false;
 const TIMEOUT = 3600000 / 2;
 
 let home_resp = 'Running!';
 
-const REQ_OPTIONS = {
-    'url': baseURL + searchURL,
-    'headers': {
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36'
-    }
-}
+let AD_STORAGE = [];
 
-const REQ_OPTIONS_PG_2 = {
-    'url': baseURL + searchURL + page2,
-    'headers': {
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36'
-    }
+let baseURL = 'https://www.njuskalo.hr';
+let searchURL = process.env.QUERY;
+
+if (process.env.ENV === 'development') {
+    baseURL = 'https://seneca.neocities.org';
+    searchURL = '/njuskalo.html';
 }
 
 console.log("WEBHOOK:", process.env.WEBHOOK);
 
-const getAds = (options) => {
+const wait = ms => new Promise((r, j)=>setTimeout(r, ms))
 
+const getHeaderForPage = (page) => {
+    return {
+        'url': baseURL + searchURL + (page ? ('&page=' + page) : ''),
+        'headers': {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36'
+        }
+    }
+}
+
+const getAds = (options) => {
     return new Promise(resolve => {
         request(options, function(err, res, body) {
             if (err) {
@@ -52,15 +45,13 @@ const getAds = (options) => {
                 const arr = [];
 
                 if (body.includes(' You reached this page when trying to access')) {
-                  SPOTTED = true;
-                  home_resp = body;
-                  console.log("********* SPOTTED ***************");
+                    home_resp = body;
                 }
 
                 let $ = cheerio.load(body);
 
                 if (!$('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').length) {
-                  home_resp = body;
+                    home_resp = body;
                 }
 
                 $('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function(index) {
@@ -104,9 +95,9 @@ const sendSlackMessage = async (webhook = WEBHOOK, message) => {
 
 }
 
-const setStorage = async new_ads => {
+const setStorage = new_ads => {
     return new Promise(resolve => {
-        fs.writeFile( "storage.json", JSON.stringify(new_ads), "utf8", () => {
+        fs.writeFile("storage.json", JSON.stringify(new_ads), "utf8", () => {
             resolve('Success');
         });
     });
@@ -118,30 +109,30 @@ const getStorage = () => {
 
 
 function generateMessageFromAds(ads = []) {
-        let message = {
-            blocks: []
-        };
+    let message = {
+        blocks: []
+    };
 
-        message.blocks.push({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "Found " + ads.length + " new results!"
-            }
-        });
+    message.blocks.push({
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "Found " + ads.length + " new results!"
+        }
+    });
 
+    message.blocks.push({
+        "type": "divider"
+    });
+
+    ads.forEach(ad => {
+        message.blocks.push(convertAdToMessage(ad));
         message.blocks.push({
             "type": "divider"
         });
+    });
 
-        ads.forEach(ad => {
-          message.blocks.push(convertAdToMessage(ad));
-          message.blocks.push({
-              "type": "divider"
-          });
-        });
-
-        return message;
+    return message;
 }
 
 
@@ -152,29 +143,37 @@ let start_time = new Date();
     console.log("ENVIROMENT:", process.env.ENV);
 
     let storage = null;
-    AD_STORAGE = await getAds(REQ_OPTIONS);
+
+    AD_STORAGE = await getAds(getHeaderForPage());
+    await wait(1000);
+    let page_2 = await getAds(getHeaderForPage(2));
+
+    AD_STORAGE = [...AD_STORAGE, ...page_2];
 
     if (!fs.existsSync('./storage.json')) {
         console.log("Storage not found");
-        setTimeout(async () => {
-            let AD_STORAGE_2 = await getAds(REQ_OPTIONS_PG_2);
-            setStorage([...AD_STORAGE, AD_STORAGE_2].map(ad => ad.id));
-        }, 500);
+        setStorage(AD_STORAGE.map(ad => ad.id));
     }
+    // Send test notification
+    sendSlackMessage(WEBHOOK, {"text":"Process has been restarted!",});
+    console.log("Recieved " + AD_STORAGE.length + " ads.");
+    console.log(typeof storage);
 
-  // Send test notification
-  sendSlackMessage(WEBHOOK, generateMessageFromAds(AD_STORAGE.slice(0, 1)));
-  console.log("Recieved " + AD_STORAGE.length + " ads.");
 })();
 
 setInterval(async () => {
-    let new_ads = await getAds(REQ_OPTIONS);
+    let new_ads = await getAds(getHeaderForPage());
+    await wait(1000);
+    let new_ads_2 = await getAds(getHeaderForPage());
+    new_ads = [...new_ads, ...new_ads_2];
 
     let storage = await getStorage();
+    console.log(typeof storage);
     let storage_set = new Set(JSON.parse(storage));
 
     console.log("UPDATE!");
 
+    // Filter only new one
     let diff = new_ads.filter(ad => !storage_set.has(ad.id));
 
     console.log("Fresh ads:", diff.length);
@@ -183,9 +182,11 @@ setInterval(async () => {
         console.log("Sending slack message");
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
 
-        setStorage(new Set([...storage, ...diff.map(ad => ad.id)]));
+        let new_storage = [...storage, ...diff.map(ad => ad.id)];
 
-        AD_STORAGE = new_ads.reduce((acc, iter) => { return {...acc, [iter.id]: iter}}, {}).values();
+        setStorage(new Set(new_storage));
+
+        AD_STORAGE = new_ads.reduce((acc, iter) => { return { ...acc, [iter.id]: iter } }, {}).values();
     }
 
     start_time = new Date();
@@ -194,20 +195,20 @@ setInterval(async () => {
 
 
 app.get('/', async function(req, res) {
-   res.set('Content-Type', 'text/html');
-   let endTime = new Date();
+    res.set('Content-Type', 'text/html');
+    let endTime = new Date();
 
-   let _html = '<h3>' + home_resp + '</h3>';
-   _html += '<p>' + (((TIMEOUT - (endTime - start_time)) / 1000) / 60).toFixed(0) + ' minutes till update</p>';
-   _html += '<hr/>';
-   _html += '<h4>Current ads:</h4>';
-
-   AD_STORAGE.forEach(ad => {
-    _html += '<p><a href="' + (baseURL + ad.href) + '">' + (ad.title || 'N/A') + '</a></p>';
-    _html += '<p><span style="color:red">(' + ad.price + ')</span></p>';
-    _html += '<p><img src="' + ad.img + '"/></p>';
+    let _html = '<h3>' + home_resp + '</h3>';
+    _html += '<p>' + (((TIMEOUT - (endTime - start_time)) / 1000) / 60).toFixed(0) + ' minutes till update</p>';
     _html += '<hr/>';
-   });
+    _html += '<h4>Current ads:</h4>';
+
+    AD_STORAGE.forEach(ad => {
+        _html += '<p><a href="' + (baseURL + ad.href) + '">' + (ad.title || 'N/A') + '</a></p>';
+        _html += '<p><span style="color:red">(' + ad.price + ')</span></p>';
+        _html += '<p><img src="' + ad.img + '"/></p>';
+        _html += '<hr/>';
+    });
 
     res.send(_html);
 });
