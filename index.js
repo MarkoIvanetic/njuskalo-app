@@ -164,11 +164,11 @@ let start_time = new Date();
 setInterval(async () => {
     let new_ads = await getAds(getHeaderForPage());
     await wait(1000);
-    let new_ads_2 = await getAds(getHeaderForPage());
+    let new_ads_2 = await getAds(getHeaderForPage(2));
+
     new_ads = [...new_ads, ...new_ads_2];
 
     let storage = await getStorage();
-    console.log(typeof storage);
     let storage_set = new Set(storage);
 
     console.log("UPDATE!");
@@ -182,11 +182,13 @@ setInterval(async () => {
         console.log("Sending slack message");
         sendSlackMessage(WEBHOOK, generateMessageFromAds(diff));
 
-        let new_storage = [...storage, ...diff.map(ad => ad.id)];
+        let new_storage = new Set([...storage_set, ...diff.map(ad => ad.id)]);
 
-        setStorage(new Set(new_storage));
+        console.log("New storage:", new_storage);
 
-        AD_STORAGE = new_ads.reduce((acc, iter) => { return { ...acc, [iter.id]: iter } }, {}).values();
+        setStorage(new_storage);
+
+        AD_STORAGE = [...AD_STORAGE, ...diff];
     }
 
     start_time = new Date();
