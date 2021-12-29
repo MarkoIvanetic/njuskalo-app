@@ -2,11 +2,12 @@ const cheerio = require('cheerio')
 
 function njuskaloParser(html) {
 	const arr = []
+    const baseURL = 'https://www.njuskalo.hr'
 
 	let $ = cheerio.load(html)
 
 	$('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function (index) {
-		const href = $(this).attr('data-href')
+		const href = baseURL + $(this).attr('data-href')
 		const options = $(this).attr('data-options')
 
 		const title = $(this).find('.entity-title').text()
