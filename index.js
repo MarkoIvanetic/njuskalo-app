@@ -5,14 +5,16 @@ const express = require('express')
 
 const app = express()
 const request = require('request')
+const axios = require('axios')
 const cheerio = require('cheerio')
 
-const { removeDuplicates, removeDuplicatesFromCollection, wait } = require('./utils')
+const { removeDuplicates, removeDuplicatesFromCollection, wait, defaultHeaders } = require('./utils')
 const { setStorage, getStorage } = require('./utils/storage')
 const { sendSlackMessage, generateMessageFromAds } = require('./utils/comms')
 
 const WEBHOOK = 'https://hooks.slack.com/services/' + process.env.WEBHOOK
-const TIMEOUT = 1000 * 60 * 10
+const TIMEOUT = 3600
+// const TIMEOUT = 1000 * 60 * 10
 
 let home_resp = 'Running!'
 
@@ -21,60 +23,67 @@ let AD_STORAGE = []
 let baseURL = 'https://www.njuskalo.hr'
 let searchURL = process.env.QUERY.replace(baseURL, '')
 
-const getHeaderForPage = (page) => {
-	return {
+async function fetchHtml(page = 1) {
+	console.log('Crawling data...')
+	// make http call to url
+	let response = await axios({
+		method: 'GET',
 		url: baseURL + searchURL + (page ? '&page=' + page : ''),
-		headers: {
-			'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36'
-		}
+		headers: defaultHeaders,
+	}).catch((err) => console.log(err))
+
+	if (response.status !== 200) {
+		console.log('Error occurred while fetching data')
+		return
 	}
+
+	return response.data
 }
 
-const getAds = (options) => {
-	return new Promise((resolve) => {
-		request(options, function (err, res, body) {
-			if (err) {
-				console.log(err)
-			} else {
-				const arr = []
+function extractHtmlKeyData(html) {
+	const arr = []
 
-				if (body.includes(' You reached this page when trying to access')) {
-					home_resp = body
-				}
+	if (html.includes(' You reached this page when trying to access')) {
+		home_resp = html
+	}
 
-				let $ = cheerio.load(body)
+	let $ = cheerio.load(html)
 
-				if (!$('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').length) {
-					home_resp = body
-				}
+	if (!$('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').length) {
+		home_resp = html
+	}
 
-				$('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function (index) {
-					const href = $(this).attr('data-href')
-					const options = $(this).attr('data-options')
+	$('.content-primary div.EntityList.EntityList--Standard ul.EntityList-items > li').each(function (index) {
+		const href = $(this).attr('data-href')
+		const options = $(this).attr('data-options')
 
-					const title = $(this).find('.entity-title').text()
-					const img = $(this).find('.entity-thumbnail').find('img').data('src')
-					let price = $(this).find('.entity-prices .price.price--eur').text()
-					price = price.replace(/\D/gm, '') + '€'
+		const title = $(this).find('.entity-title').text()
+		const img = $(this).find('.entity-thumbnail').find('img').data('src')
+		let price = $(this).find('.entity-prices .price.price--eur').text()
+		price = price.replace(/\D/gm, '') + '€'
 
-					if (options) {
-						const id = JSON.parse(options).id
-						if (id) {
-							arr.push({
-								id,
-								href,
-								img,
-								title,
-								price
-							})
-						}
-					}
+		if (options) {
+			const id = JSON.parse(options).id
+			if (id) {
+				arr.push({
+					id,
+					href,
+					img,
+					title,
+					price,
 				})
-
-				resolve(arr)
 			}
-		})
+		}
 	})
+
+	return arr
+}
+
+const getAds = async (page) => {
+	const htmlPage = await fetchHtml()
+    const adsData = extractHtmlKeyData(htmlPage)
+
+    return adsData
 }
 
 // INIT
@@ -85,11 +94,9 @@ let start_time = new Date()
 
 	let storage = null
 
-	page_1 = await getAds(getHeaderForPage())
-	await wait(1000)
-	let page_2 = await getAds(getHeaderForPage(2))
+	ads = await getAds()
 
-	AD_STORAGE = removeDuplicatesFromCollection([...page_1, ...page_2])
+	AD_STORAGE = removeDuplicatesFromCollection(ads)
 
 	if (!fs.existsSync('./storage.json')) {
 		console.log('Storage not found; setting storage...')
@@ -101,11 +108,9 @@ let start_time = new Date()
 })()
 
 setInterval(async () => {
-	let new_ads = await getAds(getHeaderForPage())
-	await wait(1000)
-	let new_ads_2 = await getAds(getHeaderForPage(2))
+	let adsData = await getAds(1)
 
-	new_ads = removeDuplicatesFromCollection([...new_ads, ...new_ads_2])
+	new_ads = removeDuplicatesFromCollection(adsData)
 
 	let storage = await getStorage()
 

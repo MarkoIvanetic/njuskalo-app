@@ -1,3 +1,5 @@
+const fs = require('fs')
+
 const setStorage = (new_ads) => {
 	return new Promise((resolve) => {
 		fs.writeFile('storage.json', JSON.stringify(new_ads), 'utf8', () => {
