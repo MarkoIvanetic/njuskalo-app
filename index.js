@@ -28,10 +28,10 @@ const getAds = async (page) => {
 	return adsData
 }
 
-function generateHTML(ads) {
+function generateHTML(ads, title) {
 	let endTime = new Date()
 
-	let _html = '<h3>' + home_resp + '</h3>'
+	let _html = '<h3>' + title + '</h3>'
 	_html += '<p>' + ((TIMEOUT - (endTime - start_time)) / 1000 / 60).toFixed(1) + ' minutes till update</p>'
 	_html += '<hr/>'
 	_html += '<h4>Current ads:</h4>'
@@ -57,7 +57,7 @@ async function crawl(config) {
 	// initialise
 	console.log('ENVIROMENT:', process.env.ENV)
 
-	const [njuskaloAds, indexAds, plaviAds] = await Promise.all(
+	const [njuskalo, index, plavi] = await Promise.all(
 		crawlDestinations.map(({ url, parser, headers }) => {
 			return fetchHtml(url, headers)
 				.then((html) => parser(html))
@@ -65,24 +65,26 @@ async function crawl(config) {
 		})
 	)
 
-	crawlDestinations.forEach(({ name }) => {
+	const adData = {
+		njuskalo, index, plavi
+	}
 
-		AD_STORAGE[name] =
+	crawlDestinations.forEach(({ name, label }) => {
+		AD_STORAGE[name] = adData[name]
+		console.log('Recieved ' + adData[name].length + ' ads from ' + label + '!')
 	})
 
 	if (!fs.existsSync('./storage.json')) {
 		console.log('Storage not found; setting storage...')
-		setStorage(AD_STORAGE.map((ad) => ad.id))
+		setStorage(AD_STORAGE)
 	}
 	// Send test notification
 	sendEmail({
 		to: emailTo,
 		from: emailFrom,
 		subject: 'Crawler started with current ads!',
-		html: generateHTML(AD_STORAGE)
+		html: crawlDestinations.reduce((acc, iter) => acc + generateHTML(adData[iter.name], iter.label), '')
 	})
-
-	console.log('Recieved ' + AD_STORAGE.length + ' ads.')
 
 	// ****************************************************************
 
