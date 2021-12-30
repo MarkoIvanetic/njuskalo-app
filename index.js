@@ -9,7 +9,7 @@ const app = express()
 
 app.get('/', async function (req, res) {
 	res.set('Content-Type', 'text/html')
-	res.send(generateHTML(AD_STORAGE))
+	res.send(generateHTML("App is running!"))
 })
 
 app.listen(9000, () => {
