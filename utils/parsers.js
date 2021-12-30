@@ -38,9 +38,11 @@ function indexParser(html) {
 
 	let $ = cheerio.load(html)
 
-	$('.results > div.OglasiRezHolder').each(function (index) {
-        const mainContainer = $(this).find('a.result')
-
+	$('.results > .OglasiRezHolder').each(function (index) {
+        const mainContainer = $(this).children('a')
+		if (!mainContainer.length) {
+			return
+		}
 		const href = mainContainer.attr('href')
         const id = href.split('/').pop()
 		const title = mainContainer.find('.title').text()
@@ -60,4 +62,27 @@ function indexParser(html) {
 	return arr
 }
 
-module.exports = { njuskaloParser, indexParser }
+function plaviParser(html) {
+	const arr = []
+
+	let $ = cheerio.load(html)
+
+	$('div.oglasnik-box.content-box > a').each(function (index) {
+		const href = $(this).attr('href')
+        const id = href.split('-').pop()
+		const title = $(this).find('.classified-title').text()
+        const price = $(this).find('.price-kn').text()
+
+        arr.push({
+            id,
+            src: 'plavi',
+            href,
+            title,
+            price
+        })
+	})
+
+	return arr
+}
+
+module.exports = { njuskaloParser, indexParser, plaviParser }

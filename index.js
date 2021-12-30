@@ -1,5 +1,5 @@
-const { njuskaloParser, indexParser } = require('./utils/parsers')
-const { njuskaloHeaders, indexHeaders } = require('./utils/data')
+const { njuskaloParser, indexParser, plaviParser } = require('./utils/parsers')
+const { njuskaloHeaders, indexHeaders, plaviHeaders } = require('./utils/data')
 
 const { crawl } = require('./crawl')
 
@@ -20,8 +20,7 @@ app.listen(9000, () => {
 crawl({
 	timeout: 1000 * 60 * 10,
 	emailFrom: 'alex.drumia@gmail.com', // must be a registered sender
-	emailTo: 'manna.grad@gmail.com',
-	// emailTo: 'alex.drumia@gmail.com',
+	emailTo: 'alex.drumia@gmail.com',
 	crawlDestinations: [
 		{
 			url: 'https://www.njuskalo.hr/iznajmljivanje-stanova?geo%5BlocationIds%5D=1153%2C1170&livingArea%5Bmax%5D=800',
@@ -31,17 +30,17 @@ crawl({
 			label: 'Njuskalo'
 		},
 		{
-			url: 'https://www.index.hr/oglasi/prodaja-stanova/gid/3278?pojamZup=-2&tipoglasa=1&sortby=1&elementsNum=10&grad=0&naselje=0&cijenaod=0&cijenado=4200000&num=4',
+			url: 'https://www.index.hr/oglasi/najam-stanova/gid/3279?pojam=&sortby=1&elementsNum=50&cijenaod=0&cijenado=501&tipoglasa=1&pojamZup=1153&grad=0&naselje=&attr_Int_988=&attr_Int_887=60&oglaslika=1&attr_bit_stan=&attr_bit_brojEtaza=&attr_gr_93_1=&attr_gr_93_2=569&attr_Int_978=&attr_Int_1334=&attr_bit_eneregetskiCertifikat=&vezani_na=988-887_562-563_978-1334',
 			parser: indexParser,
 			headers: indexHeaders,
             name: 'index',
 			label: 'Index Oglasi'
 		},
 		{
-			url: '',
-			parser: '',
-            name: '',
-			headers: 'plavi',
+			url: 'https://www.oglasnik.hr/stanovi-najam?ad_params_uploadable=1&ad_params_44_to=60&ad_price_to=3760&ad_location_2%5B%5D=7442&ad_location_3%5B%5D=7470&ad_location_3%5B%5D=7526&ad_location_3%5B%5D=7669&ad_location_3%5B%5D=7679&ad_location_3%5B%5D=7683',
+			parser: plaviParser,
+			headers: plaviHeaders,
+            name: 'plavi',
 			label: 'Plavi Oglasnik'
 		}
 	]

@@ -11,7 +11,7 @@ const sendEmail = require('./mailer.js')
 // ****************************************************************
 
 async function crawl(config) {
-	const { timeout, emailFrom, emailTo, crawlEndpoints: crawlEndpointsRaw } = config
+	const { timeout, emailFrom, emailTo, crawlDestinations: crawlEndpointsRaw } = config
 	// initialise
 	console.log('ENVIROMENT:', process.env.ENV)
 
